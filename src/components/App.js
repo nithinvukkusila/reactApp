@@ -5,16 +5,36 @@ import AddContact from "./AddContact";
 import ContactList from "./ContactList";
 import { BrowserRouter as Router, Route, Switch } from "react-router-dom";
 import ContactDetails from "./ContactDetails";
+import api from "../api/context";
+import EditContact from "./EditContact";
+
 function App() {
-  const LOCAL_STORAGE_KEY = "contacts";
   const [contacts, setContacts] = useState([]);
-  const [i, setI] = useState(1);
-  const addContactHandler = (contact) => {
-    setContacts([...contacts, { id: i, ...contact }]);
-    setI(i + 1);
+
+  const retriveContants = async () => {
+    const response = await api.get("/contacts");
+    return response.data;
+  };
+  const addContactHandler = async (contact) => {
+    const payload = {
+      id: Math.random(),
+      ...contact,
+    };
+    const response = await api.post("/contacts", payload);
+    setContacts([...contacts, response.data]);
   };
 
-  const removeContactHandler = (id) => {
+  const updateContactHandler = async (contact) => {
+     const response = await api.put(`/contacts/${contact.id}`, contact)
+     console.log(response.data)
+     const {id, name, email} = response.data
+     setContacts(contacts.map((contact)=> {
+         return contact.id === id ?  { ...response.data } : contact
+     }))
+  }
+
+  const removeContactHandler = async (id) => {
+    await api.delete(`/contacts/${id}`)
     const newContactList = contacts.filter((contact) => {
       return contact.id !== id;
     });
@@ -22,14 +42,15 @@ function App() {
   };
 
   useEffect(() => {
-    const retriveContants = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY));
-    if (retriveContants) {
-      setContacts(retriveContants);
-    }
+    const getAllContacts = async () => {
+      const allContacts = await retriveContants();
+      if (allContacts) setContacts(allContacts);
+    };
+    getAllContacts();
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(contacts));
+    // localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(contacts));
   }, [contacts]);
 
   return (
@@ -37,7 +58,7 @@ function App() {
       <Router>
         <Header />
         <Switch>
-        <Route
+          <Route
             path="/"
             exact
             render={(props) => (
@@ -55,11 +76,14 @@ function App() {
               <AddContact {...props} addContactHandler={addContactHandler} />
             )}
           />
-      
-          <Route 
-           path="/contact/:id"
-           exact
-           component={ContactDetails}
+
+          <Route path="/contact/:id" exact component={ContactDetails} />
+          <Route
+            path="/edit"
+            exact
+            render={(props) => (
+              <EditContact {...props} updateContactHandler={updateContactHandler} />
+            )}
           />
         </Switch>
       </Router>
